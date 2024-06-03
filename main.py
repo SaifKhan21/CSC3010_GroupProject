@@ -17,8 +17,13 @@ def scrape_movies_by_url(url, headers):
             rating_element = box.find('span', class_='ipc-rating-star ipc-rating-star--base ipc-rating-star--imdb ratingGroup--imdb-rating')
             summary_element = box.find('div', class_='ipc-html-content-inner-div')
 
+            title_text = title_element.text.strip() if title_element else "N/A"
+            if title_text and title_text[0].isdigit():
+                title_text = title_text.split('. ', 1)[-1]
+
+
             movie = {
-                'Title': title_element.text if title_element else "N/A",
+                'Title': title_text,
                 'Rating': rating_element['aria-label'] if rating_element else "N/A",
                 'Summary': summary_element.text.strip() if summary_element else "N/A"
             }
