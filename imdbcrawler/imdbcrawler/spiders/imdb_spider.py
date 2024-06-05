@@ -53,13 +53,13 @@ class ImdbSpider(CrawlSpider):
 
     def parse_movies(self, response):
         movie_name = response.xpath("//title/text()").get().strip().replace(" - IMDb", "")
-        plot = response.xpath('//span[@role="presentation" and @data-testid="plot-xs_to_m" and contains(@class, "sc-7193fc79-0") and contains(@class, "ftEVcu")]/text()').get()
+        plot = response.xpath('//span[@role="presentation" and @data-testid="plot-xs_to_m"]/text()').get()
 
         yield {
             'type': 'movie',
             'url': response.url,
             'movie_name': movie_name,
-            'desc': plot[:6000]
+            'plot': plot[:6000]
         }
 
         filename = f"{movie_name}.html"
