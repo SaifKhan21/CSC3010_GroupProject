@@ -1,68 +1,95 @@
+import hashlib
+import json
 import os
+import sqlite3
 from pathlib import Path
+import re
 import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
-import json
+from collections import deque
 
 class ImdbSpider(CrawlSpider):
     name = 'imdb_spider'
+
+    # Header to bypass 403 forbidden error
+    headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",  # Do Not Track Request Header
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+    # Restricts the spider to only crawl URLs under the IMDb domain
     allowed_domains = ['imdb.com']
     start_urls = [
-    # Actor search URLs
-    'https://www.imdb.com/name/nm0000138/', # Leonardo DiCaprio
-    'https://www.imdb.com/name/nm0424060/', # Scarlett Johansson
-    'https://www.imdb.com/name/nm0000093/', # Brad Pitt
-    'https://www.imdb.com/name/nm0000658/', # Meryl Streep
-    'https://www.imdb.com/name/nm0000158/', # Tom Hanks
-    # Top Charts and Movie URLs
-    # 'https://www.imdb.com/chart/top',
-    'https://www.imdb.com/title/tt0111161/', # The Shawshank Redemption
-    'https://www.imdb.com/title/tt0068646/', # The Godfather
-    'https://www.imdb.com/title/tt0110912/', # Pulp Fiction
-    'https://www.imdb.com/title/tt0468569/', # The Dark Knight
-    'https://www.imdb.com/title/tt0109830/', # Forrest Gump
-    # 'https://www.imdb.com/movies-coming-soon/',
-    # 'https://www.imdb.com/list/ls070819395/',
+    'https://www.imdb.com'
 ]
-    # Calls the relevant method based on the URL
+    rules = (
+        # Follow all links within the IMDb domain
+        Rule(LinkExtractor(allow=()), callback='parse_page', follow=True),
+    )
+
+    # Breadth-first order queue
+    def __init__(self, *args, **kwargs):
+        super(ImdbSpider, self).__init__(*args, **kwargs)
+        self.bfo_queue = deque(self.start_urls)  # Initialize a deque with start URLs
+        self.init_db()
+
+    def init_db(self):
+        self.conn = sqlite3.connect('imdb_crawler.db')
+        self.cursor = self.conn.cursor()
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pages (
+                id INTEGER PRIMARY KEY,
+                url TEXT UNIQUE,
+                crawl_date TEXT,
+                content_type TEXT,
+                html TEXT,
+                html_hash TEXT
+            )
+        ''')
+        self.conn.commit()
+
+    def close_db(self):
+        self.conn.close()
+
     def start_requests(self):
-        for url in self.start_urls:
-            if '/name/' in url:
-                yield scrapy.Request(url, callback=self.parse_actor)
-            elif '/title/' in url:
-                yield scrapy.Request(url, callback=self.parse_movies)
+        while self.bfo_queue:
+            url = self.bfo_queue.popleft()  # Pop the first URL from the queue
+            yield scrapy.Request(url, callback=self.parse_page, priority=0)
 
-    def parse_actor(self, response):
-        actor_name = response.xpath("//title/text()").get().strip().replace(" - IMDb", "")
-        json_data = response.xpath('//script[@id="__NEXT_DATA__" and @type="application/json"]/text()').get()
+    def parse_page(self, response):
+        # Save the page content
+        self.save_page(response)
 
-        data = json.loads(json_data)
-        bio_text = data['props']['pageProps']['aboveTheFold']['bio']['text']['plainText']
+        # Extract links and add them to the BFO queue
+        next_pages = response.xpath('//a/@href').getall()
+        for next_page in next_pages:
+            next_page = response.urljoin(next_page)
+            # Filters out non-HTTP links and avoids adding duplicate URLs to the queue
+            if next_page.startswith('http') and next_page not in self.bfo_queue:
+                self.bfo_queue.append(next_page)
+                yield scrapy.Request(next_page, callback=self.parse_page, priority=0)
 
-        yield {
-            'type': 'actor',
-            'url': response.url,
-            'actor_name': actor_name,
-            'bio': bio_text[:6000]
-        }
+    def save_page(self, response):
+        # Create a directory to store downloaded pages if it doesn't exist
+        url = response.url
+        crawl_date = response.headers.get('Date', '').decode('utf-8')
+        content_type = response.headers.get('Content-Type', '').decode('utf-8')
+        html = response.text
+        html_hash = hashlib.md5(html.encode()).hexdigest()
 
-        filename = f"{actor_name}.html"
-        filepath = os.path.join("downloaded_actor_pages", filename)
-        Path(filepath).write_bytes(response.body)
+        self.cursor.execute('''
+            INSERT OR IGNORE INTO pages (url, crawl_date, content_type, html, html_hash)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (url, crawl_date, content_type, html, html_hash))
+        self.conn.commit()
 
-    def parse_movies(self, response):
-        movie_name = response.xpath("//title/text()").get().strip().replace(" - IMDb", "")
-        plot = response.xpath('//span[@role="presentation" and @data-testid="plot-xs_to_m"]/text()').get()
+        self.log(f'Saved page {url}')
 
-        yield {
-            'type': 'movie',
-            'url': response.url,
-            'movie_name': movie_name,
-            'plot': plot[:6000]
-        }
-
-        filename = f"{movie_name}.html"
-        filepath = os.path.join("downloaded_movie_pages", filename)
-        Path(filepath).write_bytes(response.body)
+    def close(self, reason):
+        self.close_db()
     

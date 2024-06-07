@@ -1,1 +1,9 @@
 venv
+*.html
+response_headers
+meta
+pickled_meta
+request_body
+request_headers
+response_body
+response_headers
