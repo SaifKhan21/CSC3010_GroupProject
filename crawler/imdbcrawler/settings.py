@@ -12,16 +12,17 @@ BOT_NAME = "imdbcrawler"
 SPIDER_MODULES = ["imdbcrawler.spiders"]
 
 FEED_FORMAT = 'jsonlines'
-FEED_EXPORT_INDENT = 4  # Pretty print with 4 spaces
+FEED_EXPORT_INDENT = 4
 
 # Enable duplicate filtering
 DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-# USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
+
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 CONCURRENT_REQUESTS = 16
 
@@ -29,13 +30,11 @@ CONCURRENT_REQUESTS = 16
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 DOWNLOAD_DELAY = 2
-# The download delay setting will honor only one of:
-#CONCURRENT_REQUESTS_PER_DOMAIN = 16
-#CONCURRENT_REQUESTS_PER_IP = 16
 
 LOG_FILE = None
+
 # Disable cookies (enabled by default)
-# COOKIES_ENABLED = True
+COOKIES_ENABLED = True
 
 # Disable Telnet Console (enabled by default)
 TELNETCONSOLE_ENABLED = False
@@ -77,14 +76,9 @@ ITEM_PIPELINES = {
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
 AUTOTHROTTLE_ENABLED = True
-# The initial download delay
 AUTOTHROTTLE_START_DELAY = 1
-# The maximum download delay to be set in case of high latencies
 AUTOTHROTTLE_MAX_DELAY = 10
-# The average number of requests Scrapy should be sending in parallel to
-# each remote server
 AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
-# Enable showing throttling stats for every response received:
 AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)

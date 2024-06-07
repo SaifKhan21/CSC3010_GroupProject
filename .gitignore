@@ -1,5 +1,7 @@
+# Virtual Environment
 venv
-*.html
+
+*.db
 response_headers
 meta
 pickled_meta
@@ -7,3 +9,12 @@ request_body
 request_headers
 response_body
 response_headers
+
+# Scrapy Save States
+/.scrapy
+/crawls
+/crawler/.scrapy
+/crawler/imdbcrawler/.scrapy
+/crawler/imdbcrawler/crawls
+/crawler/imdbcrawler/__pycache__
+/crawler/imdbcrawler/spiders/__pycache__
