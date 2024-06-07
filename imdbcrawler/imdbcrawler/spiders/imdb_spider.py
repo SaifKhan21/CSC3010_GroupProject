@@ -38,8 +38,8 @@ class ImdbSpider(CrawlSpider):
     )
 
     custom_settings = {
-        #allow duplicate requests
-        'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter',
+        # allow duplicate filtering
+        'DUPEFILTER_CLASS': 'scrapy.dupefilters.RFPDupeFilter',
         # Disable cookies (enabled by default)
         'COOKIES_ENABLED': False,
         # Obey robots.txt rules
@@ -88,13 +88,19 @@ class ImdbSpider(CrawlSpider):
         for next_page in next_pages:
             next_page = response.urljoin(next_page)
             # Filters out non-HTTP links and avoids adding duplicate URLs to the queue
-            if next_page.startswith('http') and next_page not in self.bfo_queue:
-                self.bfo_queue.append(next_page)
-                yield scrapy.Request(next_page, callback=self.parse_page, priority=0)
+            normalized_next_page = self.normalize_url(next_page)
+            if normalized_next_page.startswith('http') and normalized_next_page not in self.bfo_queue:
+                self.bfo_queue.append(normalized_next_page)
+                yield scrapy.Request(normalized_next_page, callback=self.parse_page, priority=0)
+
+    def normalize_url(self, url):
+        url = url.lower()
+        url = url.rstrip('/')
+        return url
 
     def save_page(self, response):
         # Create a directory to store downloaded pages if it doesn't exist
-        url = response.url
+        url = self.normalize_url(response.url)
         crawl_date = response.headers.get('Date', '').decode('utf-8')
         content_type = response.headers.get('Content-Type', '').decode('utf-8')
 
