@@ -53,3 +53,19 @@ scrapy crawl imdb_spider
 ### Database
 
 Database will be using `sqlite`. The file will be in the tree somewhere denoted by the `.db` extension. You may use [SQLite Viewer](https://inloop.github.io/sqlite-viewer/) to help you view the database. 
+
+## Lucene Engine
+
+### Setup
+1. Download and install [IntelliJ Community Edition](https://www.jetbrains.com/idea/download/download-thanks.html?platform=windows&code=IIC) (Windows download)
+
+2. Download and install Lucene 9.11.0:
+
+Download the Lucene package [here.](https://dlcdn.apache.org/lucene/java/9.11.0/lucene-9.11.0.tgz)
+
+Extract the lucene-9.11.0 folder directly into your C drive folder (C:\lucene-9.11.0)
+
+### Running the Engine
+Open up the project using IntelliJ and run the Java file from there.
+
+Ensure that you're opening the project folder (lucene-test) and not the base github folder, otherwise dependencies won't load properly.
