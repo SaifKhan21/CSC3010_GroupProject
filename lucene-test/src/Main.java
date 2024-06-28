@@ -1,9 +1,6 @@
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -16,40 +13,42 @@ import org.apache.lucene.store.NIOFSDirectory;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws IOException, ParseException {
         System.out.println("Hello and welcome!");
 
         NIOFSDirectory indexDir = new NIOFSDirectory(Paths.get("index"));
-        Analyzer analyzer = new StandardAnalyzer();
+        Analyzer analyzer = new EnglishAnalyzer();
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter writer = new IndexWriter(indexDir, config);
-        writer.deleteAll(); // Clears all previously existing documents in writer
 
-        index_document(writer, "Document 1", "This is the content of document 1.");
-        index_document(writer, "Document 2", "This is some other content of document 2.");
-        writer.commit();
-        //writer.close(); // Reader can't access if closed, writer is closed later after reader is done
+        // Comment out these lines if you don't want to rebuild the index
+        List<String[]> dbLinks = Indexer.get_db_data("imdb_data.db");
+        Indexer.index_links(writer, dbLinks);
 
-        //IndexSearcher searcher = new IndexSearcher(writer.getReader()); // Doesn't work, have to use below method
-        IndexSearcher searcher = new IndexSearcher(DirectoryReader.open(writer));
-        Query query = new QueryParser("content", analyzer).parse("content");
-        ScoreDoc[] hits = searcher.search(query, 10).scoreDocs;
-        writer.close();
-
-        System.out.println("Found " + hits.length + " hits:");
-        for (ScoreDoc hit : hits) {
-            Document doc = searcher.doc(hit.doc);
-            System.out.println("Title: " + doc.get("title"));
-            System.out.println("Content: " + doc.get("content"));
-        }
+        query_index(analyzer, writer, "imdb");
+        //Indexer.basic_indexing();
     }
 
-    public static void index_document(IndexWriter writer, String title, String content) throws IOException {
-        Document doc = new Document();
-        doc.add(new StringField("title", title, Field.Store.YES));
-        doc.add(new TextField("content", content, Field.Store.YES));
-        writer.addDocument(doc);
+    public static void query_index(Analyzer analyzer, IndexWriter writer, String user_query) {
+        try {
+            IndexSearcher searcher = new IndexSearcher(DirectoryReader.open(writer));
+            Query query = new QueryParser("content", analyzer).parse(user_query);
+            ScoreDoc[] hits = searcher.search(query, 30).scoreDocs;
+
+            System.out.println("Found " + hits.length + " hits:");
+            for (ScoreDoc hit : hits) {
+                Document doc = searcher.doc(hit.doc);
+                System.out.println("URL: " + doc.get("url"));
+
+                String content = doc.get("content");
+                String shortenedContent = content.substring(0, Math.min(content.length(), 30));
+                System.out.println("Content: " + shortenedContent);
+            }
+        } catch (Exception e) {
+            System.out.println("[query_index] EXCEPTION OCCURRED: " + e.getMessage());
+        }
     }
 }
