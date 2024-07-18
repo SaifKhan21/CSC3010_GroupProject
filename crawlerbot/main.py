@@ -6,12 +6,12 @@ from google.oauth2.service_account import Credentials
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from crawlerbot.spiders.spider_bot import SpiderBot
+# from crawlerbot.spiders.spider_bot import SpiderBot
 
 scopes = [
     'https://www.googleapis.com/auth/spreadsheets',
 ]
-creds = Credentials.from_service_account_file('csc3010-5db0d06aeca2.json', scopes=scopes)
+creds = Credentials.from_service_account_file('csc3010-3222a271adf7.json', scopes=scopes)
 client = gspread.authorize(creds)
 
 database_id = '1ckuJUP82WHljsT-D5lVKIBlCtoV-HAmA91kRGXgmqbg'
@@ -52,7 +52,8 @@ if current_status != 'active':
     print(f'Set {current_crawler_id} to active')
 
 # Link Queue Logic
-# Headers for the Link Queue sheet: url_hash	url	crawler_id	progress	datetime_added	attempts	datetime_attempted	priority
+# Headers for the Link Queue sheet: 
+# url_hash	url	crawler_id	progress	datetime_added	attempts	datetime_attempted	priority
 if link_queue_sheet.row_count < 2:
     # hash the url using md5
     start_url_hash = hashlib.md5(start_urls[0].encode()).hexdigest()
@@ -75,11 +76,9 @@ else:
     link = link_queue[0]
     print(f'Link to be crawled: {link["url"]}')
 
-
 # # Scrapy Spider Initialization
 # settings = get_project_settings()
 # process = CrawlerProcess(settings)
-
 
 try:
     # process = CrawlerProcess(get_project_settings())
