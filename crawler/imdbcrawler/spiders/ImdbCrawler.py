@@ -7,15 +7,13 @@ from sys import stderr
 from traceback import print_exc
 from urllib.parse import urlparse
 
-import pika
+import scrapy
 from bs4 import BeautifulSoup
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
-from scrapy_distributed.common.queue_config import RabbitQueueConfig
-from scrapy_distributed.dupefilters.redis_bloom import RedisBloomConfig
-from scrapy_distributed.spiders.sitemap import SitemapSpider
 
-from crawler.imdbcrawler.spiders.imdb_database import IMDBDatabase
+from .imdb_database import IMDBDatabase
+
 
 class _DeHTMLParser(HTMLParser):
     def __init__(self):
@@ -56,17 +54,6 @@ class ImdbCrawler(CrawlSpider):
     start_urls = ['https://www.imdb.com/']
     allowed_domains = ['imdb.com']
 
-    queue_conf: RabbitQueueConfig = RabbitQueueConfig(
-        name="imdb_crawler", durable=True, 
-        arguments={"x-queue-mode": "lazy", "x-max-priority": 255},
-        properties={"delivery_mode": 2}
-    )
-
-    redis_bloom_conf: RedisBloomConfig = RedisBloomConfig(
-        key="imdb_crawler:dupefilter", error_rate=0.001, capacity=1000000,
-        exclude_url_query_params=False
-    )
-
     rules = (
         Rule(LinkExtractor(allow=()), callback='parse_page', follow=True),
     )
@@ -102,37 +89,25 @@ class ImdbCrawler(CrawlSpider):
     def __init__(self, *args, **kwargs):
         super(ImdbCrawler, self).__init__(*args, **kwargs)
         self.bfo_queue = deque(self.start_urls)
-
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=self.queue_conf.name, durable=True)
-
         self.db = IMDBDatabase()
 
     def start_requests(self):
         while self.bfo_queue:
             url = self.bfo_queue.popleft()
-            self.channel.basic_publish(
-                exchange='', routing_key=self.queue_conf.name, body=url,
-                properties=pika.BasicProperties(delivery_mode=2)
-            )
-            yield self.make_requests_from_url(url)
+            yield scrapy.Request(url, callback=self.parse_page, priority=0)
 
     def parse_page(self, response):
         if response.status == 200:
             self.save_page(response)
 
-            link_extractor = LinkExtractor()
-            for link in link_extractor.extract_links(response):
-                next_page = link.url
-                parsed_url = urlparse(next_page)
-                if parsed_url.netloc in self.allowed_domains:
-                    self.channel.basic_publish(
-                        exchange='',
-                        routing_key=self.queue_conf.name,
-                        body=next_page,
-                        properties=pika.BasicProperties(delivery_mode=2)
-                    )
+            # Extract links and add them to the BFO queue
+            next_pages = response.xpath('//a/@href').getall()
+            for next_page in next_pages:
+                next_page = response.urljoin(next_page)
+                if next_page not in self.bfo_queue:
+                    self.bfo_queue.append(next_page)
+                    yield scrapy.Request(next_page, callback=self.parse_page, priority=0)
+
         elif response.status == 404:
             self.log(f'Page not found: {response.url}')
         elif response.status == 403:
@@ -159,7 +134,15 @@ class ImdbCrawler(CrawlSpider):
         content_length = response.headers.get('Content-Length').decode('utf-8') if response.headers.get('Content-Length') else 'Unknown'
 
         with self.db as db:
-            db.save_page(url_hash, url, datetime_str, content_type, content_length, title, html, html_hash, metadata)
+            db.save_page(url_hash,
+                        url,
+                        datetime_str,
+                        content_type,
+                        content_length,
+                        title,
+                        html,
+                        html_hash,
+                        metadata)
             db.update_local_data_and_matrices()
 
         self.log(f'Saved page {url}')
