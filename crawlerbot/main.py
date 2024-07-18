@@ -65,6 +65,16 @@ if link_queue_sheet.row_count < 2:
                                 None,
                                 0]
                                 )
+    print(f'Added new link to the queue: {start_urls[0]}')
+else:
+    # Get the first link with the lowest priority and earliest datetime_added
+    # Ignoring the first header row
+    link_queue = link_queue_sheet.get_all_records()
+    link_queue = link_queue[1:]
+    link_queue = sorted(link_queue, key=lambda x: (x['priority'], x['datetime_added']))
+    link = link_queue[0]
+    print(f'Link to be crawled: {link["url"]}')
+
 
 # # Scrapy Spider Initialization
 # settings = get_project_settings()
