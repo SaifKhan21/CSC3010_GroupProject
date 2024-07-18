@@ -9,19 +9,6 @@
 
 BOT_NAME = "imdb_crawler"
 
-SPIDER_MODULES = ["simple_example.spiders"]
-NEWSPIDER_MODULE = "simple_example.spiders"
-SCHEDULER = "scrapy_distributed.schedulers.DistributedScheduler"
-SCHEDULER_QUEUE_CLASS = "scrapy_distributed.queues.amqp.RabbitQueue"
-RABBITMQ_CONNECTION_PARAMETERS = "amqp://guest:guest@localhost:5672/?heartbeat=0"
-DUPEFILTER_CLASS = "scrapy_distributed.dupefilters.redis_bloom.RedisBloomDupeFilter"
-BLOOM_DUPEFILTER_REDIS_URL = "redis://:@localhost:6379/0"
-BLOOM_DUPEFILTER_REDIS_HOST = "localhost"
-BLOOM_DUPEFILTER_REDIS_PORT = 6379
-REDIS_BLOOM_PARAMS = {"redis_cls": "redisbloom.client.Client"}
-BLOOM_DUPEFILTER_ERROR_RATE = 0.001
-BLOOM_DUPEFILTER_CAPACITY = 100_0000
-
 SPIDER_MODULES = ["imdbcrawler.spiders"]
 
 FEED_FORMAT = 'jsonlines'

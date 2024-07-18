@@ -1,13 +1,6 @@
 import datetime
 import hashlib
-from collections import deque
-from html.parser import HTMLParser
-from re import sub
-from sys import stderr
-from traceback import print_exc
-from urllib.parse import urlparse
 
-import scrapy
 from bs4 import BeautifulSoup
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
@@ -15,44 +8,17 @@ from scrapy.spiders import CrawlSpider, Rule
 from .imdb_database import IMDBDatabase
 
 
-class _DeHTMLParser(HTMLParser):
-    def __init__(self):
-        HTMLParser.__init__(self)
-        self.__text = []
-
-    def handle_data(self, data):
-        text = data.strip()
-        if len(text) > 0:
-            text = sub('[ \t\r\n]+', ' ', text)
-            self.__text.append(text + ' ')
-
-    def handle_starttag(self, tag, attrs):
-        if tag == 'p':
-            self.__text.append('\n\n')
-        elif tag == 'br':
-            self.__text.append('\n')
-
-    def handle_startendtag(self, tag, attrs):
-        if tag == 'br':
-            self.__text.append('\n\n')
-
-    def text(self):
-        return ''.join(self.__text).strip()
-
-def dehtml(text):
-    try:
-        parser = _DeHTMLParser()
-        parser.feed(text)
-        parser.close()
-        return parser.text()
-    except Exception:
-        print_exc(file=stderr)
-        return text
-
 class ImdbCrawler(CrawlSpider):
     name = 'imdb_crawler'
-    start_urls = ['https://www.imdb.com/']
-    allowed_domains = ['imdb.com']
+
+    available_start_urls = ['https://www.imdb.com/', # IMDb Home
+                            'https://www.imdb.com/chart/top/', # Top Rated Movies
+                            'https://www.imdb.com/chart/tvmeter/?ref_=nv_tvv_mptv', # TV Shows
+                            'https://www.imdb.com/emmys/?ref_=nv_ev_csegemy', # Emmy Awards
+                            'https://www.imdb.com/chart/starmeter/?ref_=nv_cel_m' # Celebrity
+                            ]
+    
+    allowed_domains = ['www.imdb.com']
 
     rules = (
         Rule(LinkExtractor(allow=()), callback='parse_page', follow=True),
@@ -71,7 +37,7 @@ class ImdbCrawler(CrawlSpider):
         'HTTPCACHE_ENABLED': True,
         'HTTPCACHE_EXPIRATION_SECS': 3600 * 24,
         'HTTPCACHE_DIR': 'httpcache',
-        'DOWNLOAD_DELAY': 0.25,
+        'DOWNLOAD_DELAY': 2,
         'DOWNLOAD_TIMEOUT': 15,
         'RETRY_TIMES': 3,
         'RETRY_HTTP_CODES': [500, 503, 504, 400, 403, 404, 408],
@@ -80,41 +46,33 @@ class ImdbCrawler(CrawlSpider):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.5",
             "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1", 
+            "DNT": "1",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
-        },
+        }, 
+        'DEPTH_LIMIT': 25,
     }
 
-    def __init__(self, *args, **kwargs):
-        super(ImdbCrawler, self).__init__(*args, **kwargs)
-        self.bfo_queue = deque(self.start_urls)
+    def __init__(self, *args, start_url_index=0, **kwargs):
+        super().__init__(*args, **kwargs)
         self.db = IMDBDatabase()
 
-    def start_requests(self):
-        while self.bfo_queue:
-            url = self.bfo_queue.popleft()
-            yield scrapy.Request(url, callback=self.parse_page, priority=0)
+        # Set start_urls based on the given index
+        if 0 <= start_url_index < len(self.available_start_urls):
+            self.start_urls = [self.available_start_urls[start_url_index]]
+        else:
+            raise ValueError(f'start_url_index {start_url_index} is out of range. Must be between 0 and {len(self.available_start_urls) - 1}.')
+
 
     def parse_page(self, response):
-        if response.status == 200:
-            self.save_page(response)
-
-            # Extract links and add them to the BFO queue
-            next_pages = response.xpath('//a/@href').getall()
-            for next_page in next_pages:
-                next_page = response.urljoin(next_page)
-                if next_page not in self.bfo_queue:
-                    self.bfo_queue.append(next_page)
-                    yield scrapy.Request(next_page, callback=self.parse_page, priority=0)
-
-        elif response.status == 404:
-            self.log(f'Page not found: {response.url}')
-        elif response.status == 403:
-            self.log(f'Forbidden: {response.url}')
-            self.log('Please check the robots.txt file or try changing the user-agent.')
-        else:
-            self.log(f'Failed to download page: {response.url}')
+        try:
+            if response.status == 200:
+                self.save_page(response)
+            else:
+                self.log(f'Failed to download page: {response.url} with status code: {response.status}')
+        except Exception as e:
+            self.log(f'Error parsing page {response.url}: {e}')
+            print_exc(file=stderr)
 
     def save_page(self, response):
         datetime_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -124,25 +82,29 @@ class ImdbCrawler(CrawlSpider):
         soup = BeautifulSoup(response.text, 'html.parser')
         title = soup.title.string if soup.title else 'No Title'
 
-        raw_html = response.text
-        html = dehtml(raw_html)
-        html_hash = hashlib.md5(html.encode()).hexdigest()
+        for script in soup(['script', 'style']):
+            script.extract()
+
+        text_content = ' '.join(filter(None, (chunk.strip() for line in soup.get_text(separator=' ').splitlines() for chunk in line.split("  "))))
+        text_content_hash = hashlib.md5(text_content.encode()).hexdigest()
 
         metadata = str(response.headers)
 
-        content_type = response.headers.get('Content-Type').decode('utf-8') if response.headers.get('Content-Type') else 'Unknown'
-        content_length = response.headers.get('Content-Length').decode('utf-8') if response.headers.get('Content-Length') else 'Unknown'
+        content_type = response.headers.get('Content-Type', b'').decode('utf-8') or 'Unknown'
+        content_length = response.headers.get('Content-Length', b'').decode('utf-8') if 'Content-Length' in response.headers else str(len(response.body))
 
         with self.db as db:
-            db.save_page(url_hash,
-                        url,
-                        datetime_str,
-                        content_type,
-                        content_length,
-                        title,
-                        html,
-                        html_hash,
-                        metadata)
+            db.save_page(
+                url_hash,
+                url,
+                datetime_str,
+                content_type,
+                content_length,
+                title,
+                text_content,
+                text_content_hash,
+                metadata
+            )
             db.update_local_data_and_matrices()
 
         self.log(f'Saved page {url}')
