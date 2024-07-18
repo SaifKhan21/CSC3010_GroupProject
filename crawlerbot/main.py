@@ -52,7 +52,7 @@ if current_status != 'active':
     print(f'Set {current_crawler_id} to active')
 
 # Link Queue Logic
-# Headers for the Link Queue sheet: 
+# Headers for the Link Queue sheet:
 # url_hash	url	crawler_id	progress	datetime_added	attempts	datetime_attempted	priority
 if link_queue_sheet.row_count < 2:
     # hash the url using md5
