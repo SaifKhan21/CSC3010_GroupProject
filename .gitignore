@@ -20,3 +20,4 @@ response_headers
 /crawler/imdbcrawler/spiders/__pycache__
 
 /old-repo
+/crawler_venv
