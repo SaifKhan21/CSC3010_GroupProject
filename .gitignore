@@ -18,3 +18,5 @@ response_headers
 /crawler/imdbcrawler/crawls
 /crawler/imdbcrawler/__pycache__
 /crawler/imdbcrawler/spiders/__pycache__
+
+/old-repo
