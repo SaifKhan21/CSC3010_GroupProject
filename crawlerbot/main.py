@@ -62,7 +62,7 @@ print(f'URLs to be crawled: {urls_to_crawl}')
 try:
     if urls_to_crawl:
         process = CrawlerProcess(get_project_settings())
-        process.crawl(SpiderBot, start_urls=urls_to_crawl, allowed_domains=['imdb.com'])
+        process.crawl(SpiderBot, start_urls=urls_to_crawl, allowed_domains=['imdb.com'], link_queue_sheet=link_queue_sheet)
         process.start()
 
         # Ensure we get the spider and items after the crawl

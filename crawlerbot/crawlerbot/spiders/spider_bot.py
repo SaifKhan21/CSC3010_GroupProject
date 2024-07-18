@@ -18,9 +18,9 @@ class SpiderBot(CrawlSpider):
         'AUTOTHROTTLE_ENABLED': True,
         'AUTOTHROTTLE_START_DELAY': 2,
         'AUTOTHROTTLE_MAX_DELAY': 60,
-        'HTTPCACHE_ENABLED': True,
-        'HTTPCACHE_EXPIRATION_SECS': 3600 * 24,
-        'HTTPCACHE_DIR': 'httpcache',
+        # 'HTTPCACHE_ENABLED': True,
+        # 'HTTPCACHE_EXPIRATION_SECS': 3600 * 24,
+        # 'HTTPCACHE_DIR': 'httpcache',
         'DOWNLOAD_DELAY': 0.25,
         'DOWNLOAD_TIMEOUT': 15,
         'RETRY_TIMES': 3,
@@ -45,27 +45,36 @@ class SpiderBot(CrawlSpider):
         Rule(LinkExtractor(allow=()), callback='parse_item', follow=True),
     )
 
-    def __init__(self, start_urls=None, allowed_domains=None, *args, **kwargs):
+    def __init__(self, start_urls=None, allowed_domains=None, link_queue_sheet=None, *args, **kwargs):
         super(SpiderBot, self).__init__(*args, **kwargs)
-        if start_urls and allowed_domains:
-            self.start_urls = start_urls
-            self.allowed_domains = allowed_domains
+        self.start_urls = start_urls if start_urls else []
+        self.allowed_domains = allowed_domains if allowed_domains else []
+        self.link_queue_sheet = link_queue_sheet
 
-    def parse_item(self, response):
+    def start_requests(self):
+        for url in self.start_urls:
+            yield scrapy.Request(url, callback=self.parse, meta={'start_time': time.time()})
+
+    def parse(self, response):
         start_time = response.meta['start_time']
         url = response.url
         url_hash = hashlib.md5(url.encode()).hexdigest()
         title = response.css('title::text').get() if response.css('title::text').get() else ''
+
         soup = BeautifulSoup(response.text, 'html.parser')
         for script in soup(['script', 'style']):
             script.extract()
+
         text_content = soup.get_text(separator=' ', strip=True)
         lines = (line.strip() for line in text_content.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         text_content = '\n'.join(chunk for chunk in chunks if chunk)
+
         content_hash = hashlib.md5(text_content.encode()).hexdigest()
         response_time = time.time() - start_time
         metadata = response.headers.to_unicode_dict()
+
+        # Yield item
         yield {
             'url': url,
             'url_hash': url_hash,
@@ -79,6 +88,23 @@ class SpiderBot(CrawlSpider):
             'error_code': response.status
         }
 
-    def start_requests(self):
-        for url in self.start_urls:
-            yield scrapy.Request(url, callback=self.parse_item, meta={'start_time': time.time()})
+        # Extract links and add to the link queue
+        if response.status == 200:
+            next_pages = response.xpath('//a/@href').getall()
+            for next_page in next_pages:
+                next_page = response.urljoin(next_page)
+                if self.link_queue_sheet:
+                    self.link_queue_sheet.add_link(next_page)
+                    yield scrapy.Request(next_page, callback=self.parse, meta={'start_time': time.time()})
+
+        elif response.status == 404:
+            self.log(f'Page not found: {response.url}')
+
+        elif response.status == 403:
+            self.log(f'Forbidden: {response.url}')
+            self.log('Please check the robots.txt file for the website or try changing the user-agent.')
+
+        else:
+            self.log(f'Failed to download page: {response.url}')
+
+   
