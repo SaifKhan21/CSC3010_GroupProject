@@ -44,27 +44,27 @@ public class Queryer {
 
     // Queries the index with a user query string
     @RequestMapping("/query")
-    public String query_index() throws IOException, ParseException {
-        String user_query = "tom hanks";
-
+    public String query_Index() throws IOException, ParseException {
+    	String user_query = "Chris Pratt";
         try {
             IndexSearcher searcher = new IndexSearcher(DirectoryReader.open(writer));
-            Query query = new QueryParser("content", analyzer).parse(user_query);
-            ScoreDoc[] hits = searcher.search(query, 30).scoreDocs;
+            QueryParser parser = new QueryParser("content", analyzer);
+            parser.setDefaultOperator(QueryParser.Operator.AND);
+            Query query = parser.parse("\"" + user_query + "\"");
+            ScoreDoc[] hits = searcher.search(query, 1000).scoreDocs;
 
-            String result = "";
-            result += "Found " + hits.length + " hits:<br>";
+            StringBuilder result = new StringBuilder();
+            result.append("Found ").append(hits.length).append(" hits:<br>");
             for (ScoreDoc hit : hits) {
                 Document doc = searcher.doc(hit.doc);
-                result += "URL: " + doc.get("url") + "<br>";
-
+                result.append("URL: ").append(doc.get("url")).append("<br>");
                 String content = doc.get("content");
                 String shortenedContent = content.substring(0, Math.min(content.length(), 30));
-                result += "Content: " + shortenedContent + "<br><br>";
+                result.append("Content: ").append(shortenedContent).append("<br><br>");
             }
-            return result;
+            return result.toString();
         } catch (Exception e) {
-            return "[query_index] EXCEPTION OCCURRED: " + e.getMessage();
+            return "[queryIndex] EXCEPTION OCCURRED: " + e.getMessage();
         }
     }
 }
