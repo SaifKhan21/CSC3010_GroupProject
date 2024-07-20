@@ -47,6 +47,8 @@ public class Queryer {
 
     // Queries the index with a user query string
     @RequestMapping("/query")
+    public String query_Index() throws IOException, ParseException {
+    	String user_query = "Chris Pratt";
     public String queryIndex() throws IOException, ParseException {
         String user_query = "Jurassic World";
         try {
