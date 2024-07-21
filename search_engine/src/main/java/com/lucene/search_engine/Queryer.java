@@ -1,5 +1,9 @@
 package com.lucene.search_engine;
 
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.List;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.document.Document;
@@ -15,11 +19,6 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.NIOFSDirectory;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.List;
-
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,8 +46,6 @@ public class Queryer {
 
     // Queries the index with a user query string
     @RequestMapping("/query")
-    public String query_Index() throws IOException, ParseException {
-    	String user_query = "Chris Pratt";
     public String queryIndex() throws IOException, ParseException {
         String user_query = "Jurassic World";
         try {
