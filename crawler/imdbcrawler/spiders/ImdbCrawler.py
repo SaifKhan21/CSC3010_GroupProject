@@ -1,7 +1,11 @@
 import datetime
 import hashlib
+from collections import deque
+from sys import stderr
+from traceback import print_exc
 
 from bs4 import BeautifulSoup
+from scrapy.http import Request
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 
@@ -10,15 +14,8 @@ from .imdb_database import IMDBDatabase
 
 class ImdbCrawler(CrawlSpider):
     name = 'imdb_crawler'
-
-    available_start_urls = ['https://www.imdb.com/', # IMDb Home
-                            'https://www.imdb.com/chart/top/', # Top Rated Movies
-                            'https://www.imdb.com/chart/tvmeter/?ref_=nv_tvv_mptv', # TV Shows
-                            'https://www.imdb.com/emmys/?ref_=nv_ev_csegemy', # Emmy Awards
-                            'https://www.imdb.com/chart/starmeter/?ref_=nv_cel_m' # Celebrity
-                            ]
-    
-    allowed_domains = ['www.imdb.com']
+    start_urls = []
+    allowed_domains = []
 
     rules = (
         Rule(LinkExtractor(allow=()), callback='parse_page', follow=True),
@@ -49,25 +46,31 @@ class ImdbCrawler(CrawlSpider):
             "DNT": "1",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
-        }, 
-        'DEPTH_LIMIT': 25,
+        },
+        'DEPTH_LIMIT': 50,
+        'DOWNLOADER_MIDDLEWARES': {
+            'imdbcrawler.middlewares.ImdbcrawlerDownloaderMiddleware': 543,
+        },
     }
 
-    def __init__(self, *args, start_url_index=0, **kwargs):
+    def __init__(self, *args, start_url=[], allowed_domain=[], **kwargs):
         super().__init__(*args, **kwargs)
         self.db = IMDBDatabase()
+        self.start_urls = [start_url]
+        self.allowed_domains = [allowed_domain]
 
-        # Set start_urls based on the given index
-        if 0 <= start_url_index < len(self.available_start_urls):
-            self.start_urls = [self.available_start_urls[start_url_index]]
-        else:
-            raise ValueError(f'start_url_index {start_url_index} is out of range. Must be between 0 and {len(self.available_start_urls) - 1}.')
-
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url, callback=self.parse_page)
 
     def parse_page(self, response):
         try:
             if response.status == 200:
                 self.save_page(response)
+                links = LinkExtractor(allow=self.allowed_domains).extract_links(response)
+                for link in links:
+                    next_url = link.url
+                    yield Request(next_url, callback=self.parse_page)
             else:
                 self.log(f'Failed to download page: {response.url} with status code: {response.status}')
         except Exception as e:
