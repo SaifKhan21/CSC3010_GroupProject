@@ -8,9 +8,12 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.NIOFSDirectory;
 
 import java.io.IOException;
@@ -44,27 +47,37 @@ public class Queryer {
 
     // Queries the index with a user query string
     @RequestMapping("/query")
-    public String query_index() throws IOException, ParseException {
-        String user_query = "tom hanks";
-
+    public String queryIndex() throws IOException, ParseException {
+        String user_query = "Jurassic World";
         try {
-            IndexSearcher searcher = new IndexSearcher(DirectoryReader.open(writer));
-            Query query = new QueryParser("content", analyzer).parse(user_query);
-            ScoreDoc[] hits = searcher.search(query, 30).scoreDocs;
+            DirectoryReader reader = DirectoryReader.open(writer);
+            IndexSearcher searcher = new IndexSearcher(reader);
+            searcher.setSimilarity(new BM25Similarity()); // Set BM25Similarity for searching
 
-            String result = "";
-            result += "Found " + hits.length + " hits:<br>";
+            // Boosting the content field in the query
+            QueryParser parser = new QueryParser("content", analyzer);
+            parser.setDefaultOperator(QueryParser.Operator.AND);
+            Query query = parser.parse(user_query);
+
+            BooleanQuery boostedQuery = new BooleanQuery.Builder()
+                .add(new BooleanClause(query, BooleanClause.Occur.SHOULD))
+                .build();
+
+            ScoreDoc[] hits = searcher.search(boostedQuery, 1000).scoreDocs;
+
+            StringBuilder result = new StringBuilder();
+            result.append("Found ").append(hits.length).append(" hits:<br>");
             for (ScoreDoc hit : hits) {
                 Document doc = searcher.doc(hit.doc);
-                result += "URL: " + doc.get("url") + "<br>";
-
+                result.append("URL: ").append(doc.get("url")).append("<br>");
                 String content = doc.get("content");
                 String shortenedContent = content.substring(0, Math.min(content.length(), 30));
-                result += "Content: " + shortenedContent + "<br><br>";
+                result.append("Content: ").append(shortenedContent).append("<br><br>");
             }
-            return result;
+            reader.close();
+            return result.toString();
         } catch (Exception e) {
-            return "[query_index] EXCEPTION OCCURRED: " + e.getMessage();
+            return "[queryIndex] EXCEPTION OCCURRED: " + e.getMessage();
         }
     }
 }
