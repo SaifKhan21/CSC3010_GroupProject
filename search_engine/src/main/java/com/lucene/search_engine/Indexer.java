@@ -33,7 +33,7 @@ public class Indexer {
         writer.deleteAll();
 
         for (String[] link : links)
-            index_document(writer, link[0], link[1]);
+            index_document(writer, link[0], link[1], link[2]);
         writer.commit();
     }
 
@@ -45,24 +45,27 @@ public class Indexer {
 
             ResultSet rs = statement.executeQuery("SELECT * FROM PAGES");
             while (rs.next()) {
-                String[] dbResult = new String[2];
+                String[] dbResult = new String[3];
                 dbResult[0] = rs.getString("url");
-                dbResult[1] = rs.getString("html");
+                dbResult[1] = rs.getString("title");
+                dbResult[2] = rs.getString("html");
                 dbResults.add(dbResult);
             }
             statement.close();
             connection.close();
+            return dbResults;
 
         } catch (Exception e) {
-            System.out.println("[get_db_data] EXCEPTION OCCURRED: " + e.getMessage());
+            System.out.println("[Indexer] [get_db_data] EXCEPTION OCCURRED: " + e.getMessage());
+            return null;
         }
-        return dbResults;
     }
 
-    public static void index_document(IndexWriter writer, String url, String content) throws IOException {
+    public static void index_document(IndexWriter writer, String url, String title, String html) throws IOException {
         Document doc = new Document();
         doc.add(new StringField("url", url, Field.Store.YES));
-        doc.add(new TextField("content", content, Field.Store.YES));
+        doc.add(new TextField("title", title, Field.Store.YES));
+        doc.add(new TextField("html", html, Field.Store.YES));
         writer.addDocument(doc);
     }
 
@@ -73,13 +76,11 @@ public class Indexer {
         IndexWriter writer = new IndexWriter(indexDir, config);
         writer.deleteAll(); // Clears all previously existing documents in writer
 
-        index_document(writer, "Document 1", "This is the amenity content of document 1.");
-        index_document(writer, "Document 2", "This is some other amenities content of document 2.");
-        index_document(writer, "Document 3", "This is another amenity content of document 3.");
+        index_document(writer, "www.document1.com", "Document 1", "This is the amenity content of document 1.");
+        index_document(writer, "www.document2.com", "Document 2", "This is some other amenities content of document 2.");
+        index_document(writer, "www.document3.com", "Document 3", "This is another amenity content of document 3.");
         writer.commit();
-        //writer.close(); // Reader can't access if closed, writer is closed later after reader is done
 
-        //IndexSearcher searcher = new IndexSearcher(writer.getReader()); // Doesn't work, have to use below method
         IndexSearcher searcher = new IndexSearcher(DirectoryReader.open(writer));
         Query query = new QueryParser("content", analyzer).parse("amenities");
         ScoreDoc[] hits = searcher.search(query, 10).scoreDocs;
