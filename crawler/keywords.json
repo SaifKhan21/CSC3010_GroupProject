@@ -1,0 +1,111 @@
+{
+    "high": {
+        "title": [
+            "movie",
+            "film",
+            "series",
+            "documentary",
+            "episode"
+        ],
+        "product": [
+            "model",
+            "device",
+            "item",
+            "equipment",
+            "tool"
+        ],
+        "company": [
+            "brand",
+            "corporation",
+            "firm",
+            "enterprise"
+        ],
+        "person": [
+            "name",
+            "biography",
+            "profile",
+            "resume"
+        ],
+        "feature": [
+            "specification",
+            "details",
+            "characteristics"
+        ],
+        "review": [
+            "rating",
+            "critique",
+            "assessment"
+        ]
+    },
+    "middle": {
+        "media": [
+            "video",
+            "trailer",
+            "photo",
+            "image"
+        ],
+        "content": [
+            "description",
+            "synopsis",
+            "summary",
+            "overview"
+        ],
+        "technical": [
+            "specs",
+            "performance",
+            "benchmark"
+        ],
+        "location": [
+            "address",
+            "location",
+            "venue"
+        ],
+        "support": [
+            "manual",
+            "guide",
+            "tutorial",
+            "faq"
+        ],
+        "news": [
+            "update",
+            "announcement",
+            "release",
+            "press"
+        ]
+    },
+    "low": {
+        "general": [
+            "info",
+            "details",
+            "content",
+            "data"
+        ],
+        "miscellaneous": [
+            "misc",
+            "other",
+            "various"
+        ],
+        "social": [
+            "comment",
+            "post",
+            "thread",
+            "discussion"
+        ],
+        "availability": [
+            "stock",
+            "inventory",
+            "supply"
+        ],
+        "sales": [
+            "discount",
+            "offer",
+            "promotion",
+            "deal"
+        ],
+        "contact": [
+            "phone",
+            "email",
+            "support"
+        ]
+    }
+}

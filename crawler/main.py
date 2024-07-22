@@ -71,8 +71,8 @@ def available_threads():
 def perform_speed_test():
     try:
         st = speedtest.Speedtest()
-        download_speed = st.download() / 1000000  # Convert to Mbps
-        upload_speed = st.upload() / 1000000  # Convert to Mbps
+        download_speed = st.download() / 1000000
+        upload_speed = st.upload() / 1000000
 
         print("Download Speed: {:.2f} Mbps".format(download_speed))
         print("Upload Speed: {:.2f} Mbps".format(upload_speed))
@@ -90,7 +90,7 @@ def main():
         print("Database initialized successfully.")
 
         processes = []
-        _,_ = perform_speed_test()
+        #_,_ = perform_speed_test()
         start_urls = get_start_urls(int(available_threads()-5), "https://www.imdb.com")
         allowed_domain = 'www.imdb.com'
 

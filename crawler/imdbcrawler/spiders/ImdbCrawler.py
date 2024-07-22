@@ -49,6 +49,8 @@ class ImdbCrawler(CrawlSpider):
         },
         'DEPTH_LIMIT': 50,
         'DOWNLOADER_MIDDLEWARES': {
+            'imdbcrawler.middlewares.PriorityMiddleware': 100,
+            'imdbcrawler.middlewares.SpiderTrapMiddleware': 200,
             'imdbcrawler.middlewares.ImdbcrawlerDownloaderMiddleware': 543,
         },
     }
@@ -70,6 +72,7 @@ class ImdbCrawler(CrawlSpider):
                 links = LinkExtractor(allow=self.allowed_domains).extract_links(response)
                 for link in links:
                     next_url = link.url
+
                     yield Request(next_url, callback=self.parse_page)
             else:
                 self.log(f'Failed to download page: {response.url} with status code: {response.status}')
