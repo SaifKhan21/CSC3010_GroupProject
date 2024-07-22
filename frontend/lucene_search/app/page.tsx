@@ -5,7 +5,8 @@ import { useState } from "react";
 // Define the type for search results
 interface SearchResult {
     url: string;
-    content: string;
+    title: string,
+    html: string;
 }
 
 export default function Home() {
@@ -19,11 +20,12 @@ export default function Home() {
         if (!query) return;
 
         try {
-            const res = await fetch(`http://localhost:8080/query?q=${query}`);
+            const encodedQuery = query.replace(" ", "%20");
+            const res = await fetch(`http://localhost:8080/query?q=${encodedQuery}`);
             const text = await res.text();
 
             // Log the response text to analyze the issue
-            // console.log("Response text:", text);
+            // console.log("Response text: ", text);
 
             // Parse the response text to extract the results
             const parsedResults = parseResults(text);
@@ -49,7 +51,9 @@ export default function Home() {
             console.log("Indexing...");
 
             // Parse the response text to extract the results
-            setError(null);
+            setError(
+                "Index successful!"
+            );
             setCurrentPage(1); // Reset to the first page on new search
             setResults([]); // Set results to blank
         } catch (error) {
@@ -68,12 +72,14 @@ export default function Home() {
 
         lines.forEach((line) => {
             const urlMatch = line.match(/URL: (.*?)<br>/);
-            const contentMatch = line.match(/Content: (.*)/);
+            const titleMatch = line.match(/Title: (.*)<br>/);
+            const htmlMatch = line.match(/Content: (.*)/);
 
-            if (urlMatch && contentMatch) {
+            if (urlMatch && titleMatch && htmlMatch) {
                 results.push({
                     url: urlMatch[1],
-                    content: contentMatch[1],
+                    title: titleMatch[1],
+                    html: htmlMatch[1],
                 });
             }
         });
@@ -186,8 +192,10 @@ export default function Home() {
                                 href={result.url}
                                 className="text-xl font-semibold text-blue-600 hover:underline"
                             >
-                                {result.content}
+                                {result.title}
                             </a>
+                            <br/>
+                            {result.html}
                         </div>
                     ))
                 ) : (

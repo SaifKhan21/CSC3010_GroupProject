@@ -10,7 +10,7 @@ import java.io.IOException;
 public class SearchEngineApplication {
 
 	public static void main(String[] args) throws IOException, ParseException {
-		Queryer.build_components();
+		Controller.build_components();
 		SpringApplication.run(SearchEngineApplication.class, args);
 	}
 }
