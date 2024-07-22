@@ -12,6 +12,7 @@ export default function Home() {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,10 +29,33 @@ export default function Home() {
             const parsedResults = parseResults(text);
             setResults(parsedResults);
             setError(null);
+            setCurrentPage(1); // Reset to the first page on new search
         } catch (error) {
             console.error("Error fetching search results:", error);
             setError(
                 "Error fetching search results. Please check the console for more details."
+            );
+            setResults([]);
+        }
+    };
+
+    const performIndex = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        try {
+            const res = await fetch(`http://localhost:8080/index_db`);
+
+            // Log the response text to analyze the issue
+            console.log("Indexing...");
+
+            // Parse the response text to extract the results
+            setError(null);
+            setCurrentPage(1); // Reset to the first page on new search
+            setResults([]); // Set results to blank
+        } catch (error) {
+            console.error("Error performing indexing:", error);
+            setError(
+                "Error performing indexing. Please check the console for more details."
             );
             setResults([]);
         }
@@ -57,6 +81,70 @@ export default function Home() {
         return results;
     };
 
+    // Pagination logic
+    const resultsPerPage = 10;
+    const totalPages = Math.ceil(results.length / resultsPerPage);
+    const currentResults = results.slice(
+        (currentPage - 1) * resultsPerPage,
+        currentPage * resultsPerPage
+    );
+
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const renderPaginationButtons = () => {
+        const maxVisiblePages = 8;
+        const startPage = Math.max(
+            Math.min(
+                currentPage - Math.floor(maxVisiblePages / 2),
+                totalPages - maxVisiblePages
+            ),
+            1
+        );
+
+        const endPage = Math.min(startPage + maxVisiblePages - 1, totalPages);
+        const paginationButtons = [];
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationButtons.push(
+                <button
+                    key={i}
+                    onClick={() => handlePageChange(i)}
+                    className={`mx-1 px-3 py-1 rounded ${
+                        i === currentPage
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-300 text-gray-700"
+                    }`}
+                >
+                    {i}
+                </button>
+            );
+        }
+
+        return (
+            <>
+                {startPage > 1 && (
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className="mx-1 px-3 py-1 rounded bg-gray-300 text-gray-700"
+                    >
+                        Prev
+                    </button>
+                )}
+                {paginationButtons}
+                {endPage < totalPages && (
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className="mx-1 px-3 py-1 rounded bg-gray-300 text-gray-700"
+                    >
+                        Next
+                    </button>
+                )}
+            </>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col items-center p-4">
             <h1 className="text-4xl font-bold mb-8">Search Engine</h1>
@@ -73,17 +161,23 @@ export default function Home() {
                 />
                 <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     Search
+                </button>
+                <button
+                    onClick={performIndex}
+                    className="px-4 py-2 bg-green-500 text-white rounded-r-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                    Index
                 </button>
             </form>
             {error && (
                 <div className="mt-4 w-full max-w-xl text-red-500">{error}</div>
             )}
             <div className="mt-8 w-full max-w-xl">
-                {results.length > 0 ? (
-                    results.map((result, index) => (
+                {currentResults.length > 0 ? (
+                    currentResults.map((result, index) => (
                         <div
                             key={index}
                             className="mb-4 p-4 bg-white rounded-lg shadow-md"
@@ -94,13 +188,17 @@ export default function Home() {
                             >
                                 {result.content}
                             </a>
-                            {/* <p className="text-gray-700">{result.content}</p> */}
                         </div>
                     ))
                 ) : (
                     <p className="text-gray-500">No results found</p>
                 )}
             </div>
+            {results.length > resultsPerPage && (
+                <div className="flex flex-row flex-wrap my-4 px-10 w-full gap-2 justify-center">
+                    {renderPaginationButtons()}
+                </div>
+            )}
         </div>
     );
 }
