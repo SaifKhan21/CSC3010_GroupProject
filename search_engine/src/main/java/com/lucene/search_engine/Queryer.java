@@ -23,9 +23,9 @@ public class Queryer {
             // Setting the parser to check and parse query against the HTML field in the documents
             QueryParser htmlParser = new QueryParser("html", analyzer);
             Query htmlQuery = htmlParser.parse(user_query);
-            Query boostedHtmlQuery = new BoostQuery(htmlQuery, 1f);
+            Query boostedHtmlQuery = new BoostQuery(htmlQuery, 2f);
 
-            // Gives a weighted multiplier for documents that match the query terms in the =Main Content HTML fields
+            // Gives a weighted multiplier for documents that match the query terms in the Main Content HTML fields
             BooleanQuery boostedQuery = new BooleanQuery.Builder()
                     .add(new BooleanClause(boostedHtmlQuery, BooleanClause.Occur.SHOULD))
                     .build();
