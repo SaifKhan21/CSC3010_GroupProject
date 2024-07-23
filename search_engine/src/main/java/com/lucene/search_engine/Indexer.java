@@ -68,29 +68,4 @@ public class Indexer {
         doc.add(new TextField("html", html, Field.Store.YES));
         writer.addDocument(doc);
     }
-
-    public static void basic_indexing() throws IOException, ParseException {
-        NIOFSDirectory indexDir = new NIOFSDirectory(Paths.get("index"));
-        Analyzer analyzer = new EnglishAnalyzer();
-        IndexWriterConfig config = new IndexWriterConfig(analyzer);
-        IndexWriter writer = new IndexWriter(indexDir, config);
-        writer.deleteAll(); // Clears all previously existing documents in writer
-
-        index_document(writer, "www.document1.com", "Document 1", "This is the amenity content of document 1.");
-        index_document(writer, "www.document2.com", "Document 2", "This is some other amenities content of document 2.");
-        index_document(writer, "www.document3.com", "Document 3", "This is another amenity content of document 3.");
-        writer.commit();
-
-        IndexSearcher searcher = new IndexSearcher(DirectoryReader.open(writer));
-        Query query = new QueryParser("content", analyzer).parse("amenities");
-        ScoreDoc[] hits = searcher.search(query, 10).scoreDocs;
-        writer.close();
-
-        System.out.println("Found " + hits.length + " hits:");
-        for (ScoreDoc hit : hits) {
-            Document doc = searcher.doc(hit.doc);
-            System.out.println("Title: " + doc.get("title"));
-            System.out.println("Content: " + doc.get("content"));
-        }
-    }
 }
