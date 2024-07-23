@@ -14,6 +14,7 @@ export default function Home() {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState<string | null>(null);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -21,12 +22,12 @@ export default function Home() {
 
         try {
             const encodedQuery = query.replace(" ", "%20");
+            setError("Searching...");
             const res = await fetch(`http://localhost:8080/query?q=${encodedQuery}`);
             const text = await res.text();
-
+            setLoading(null);
             // Log the response text to analyze the issue
             // console.log("Response text: ", text);
-
             // Parse the response text to extract the results
             const parsedResults = parseResults(text);
             setResults(parsedResults);
@@ -38,18 +39,20 @@ export default function Home() {
                 "Error fetching search results. Please check the console for more details."
             );
             setResults([]);
-        }
+        } 
     };
 
     const performIndex = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        
         try {
+            setError("Indexing...");
             const res = await fetch(`http://localhost:8080/index_db`);
-
             // Log the response text to analyze the issue
             console.log("Indexing...");
 
+            setLoading(null);
             // Parse the response text to extract the results
             setError(
                 "Index successful!"
@@ -62,7 +65,7 @@ export default function Home() {
                 "Error performing indexing. Please check the console for more details."
             );
             setResults([]);
-        }
+        } 
     };
 
     // Function to parse the response text
@@ -183,7 +186,11 @@ export default function Home() {
             )}
             <div className="mt-8 w-full max-w-xl">
                 {currentResults.length > 0 ? (
-                    currentResults.map((result, index) => (
+                    <>
+                    <p className="text-gray-700 mb-4">
+                    {results.length} {results.length === 1 ? 'result' : 'results'} found
+                    </p>
+                    {currentResults.map((result, index) => (
                         <div
                             key={index}
                             className="mb-4 p-4 bg-white rounded-lg shadow-md"
@@ -197,7 +204,8 @@ export default function Home() {
                             <br/>
                             {result.html}
                         </div>
-                    ))
+                    ))}
+                    </>
                 ) : (
                     <p className="text-gray-500">No results found</p>
                 )}
