@@ -13,24 +13,33 @@ import org.apache.lucene.search.similarities.BM25Similarity;
 
 public class Queryer {
 
-    public static String query_index(String user_query, Analyzer analyzer, IndexWriter writer) throws IOException, ParseException {
+    public static String query_index(String user_query, Analyzer analyzer, IndexWriter writer)
+            throws IOException, ParseException {
         try {
             DirectoryReader reader = DirectoryReader.open(writer);
             IndexSearcher searcher = new IndexSearcher(reader);
             // Set BM25Similarity as the ranking system
             searcher.setSimilarity(new BM25Similarity());
 
-            // Setting the parser to check and parse query against the HTML field in the documents
+            // Setting the parser to check and parse query against the HTML field in the
+            // documents
             QueryParser htmlParser = new QueryParser("html", analyzer);
             Query htmlQuery = htmlParser.parse(user_query);
-            Query boostedHtmlQuery = new BoostQuery(htmlQuery, 2f);
+            Query boostedHtmlQuery = new BoostQuery(htmlQuery, 5f);
 
-            // Gives a weighted multiplier for documents that match the query terms in the Main Content HTML fields
+            // Parse the user query for the "title" field with a boost
+            QueryParser titleParser = new QueryParser("title", analyzer);
+            Query titleQuery = titleParser.parse(user_query);
+            Query boostedTitleQuery = new BoostQuery(titleQuery, 0.5f);
+
+            // Gives a weighted multiplier for documents that match the query terms in the
+            // Main Content HTML fields
             BooleanQuery boostedQuery = new BooleanQuery.Builder()
                     .add(new BooleanClause(boostedHtmlQuery, BooleanClause.Occur.SHOULD))
+                    .add(new BooleanClause(boostedTitleQuery, BooleanClause.Occur.SHOULD))
                     .build();
 
-            ScoreDoc[] hits = searcher.search(boostedQuery, 100).scoreDocs;
+            ScoreDoc[] hits = searcher.search(boostedQuery, 20).scoreDocs;
 
             StringBuilder result = new StringBuilder();
             result.append("<b>FOUND ").append(hits.length).append(" HITS:</b><br>");
